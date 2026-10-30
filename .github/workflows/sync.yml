@@ -69,7 +69,7 @@ jobs:
         run: |
           cd kiauh-patched
           
-          # 1. 基础替换
+          # 1. 基础替换（把 github.com 换成你的 gitee.com）
           FILES=$(grep -rl "https://github.com" . --include="*.py" --include="*.cfg" --include="*.sh" || true)
           if [ -n "$FILES" ]; then
             sed -i \
@@ -91,11 +91,54 @@ jobs:
           fi
 
           # 2. 修正 Mainsail 下载
-          sed -i -E 's|BASE_DL_URL: str = ".*"|BASE_DL_URL: str = "https://gitee.com/ydd632184193/mainsail_zip/raw/master/"|g' kiauh/components/webui_client/mainsail_data.py || true
-          sed -i 's|/latest/download/|/|g' kiauh/components/webui_client/client_utils.py || true
+          if [ -f kiauh/components/webui_client/mainsail_data.py ]; then
+            sed -i -E 's|BASE_DL_URL: str = ".*"|BASE_DL_URL: str = "https://gitee.com/ydd632184193/mainsail_zip/raw/master/"|g' kiauh/components/webui_client/mainsail_data.py
+          fi
+          if [ -f kiauh/components/webui_client/client_utils.py ]; then
+            sed -i 's|/latest/download/|/|g' kiauh/components/webui_client/client_utils.py
+          fi
 
-          # 3. 从你的 Gitee 拉取补丁并执行
-          curl -sL https://gitee.com/ydd632184193/kiauh/raw/master/patch.py -o patch.py
+          # 3. 提取出安全的 Python 脚本文件 (绝对不会有缩进错位)
+          cat << 'PYEOF' > patch.py
+          import re
+          file_path = 'kiauh/core/menus/install_menu.py'
+          with open(file_path, 'r', encoding='utf-8') as f:
+              content = f.read()
+
+          if '"9": Option' not in content:
+              content = content.replace('"8": Option(method=self.install_crowsnest),', '"8": Option(method=self.install_crowsnest),\n            "9": Option(method=self.install_timelapse),')
+              content = content.replace('║  3) [Mainsail]            │                           ║', '║  3) [Mainsail]            │  9) [Timelapse]           ║')
+
+          if 'def install_timelapse' not in content:
+              method = (
+                  '    def install_timelapse(self, **kwargs) -> None:\n'
+                  '        import os\n'
+                  '        print("\\n[INFO] 正在从你的 Gitee 仓库安装 Moonraker-Timelapse...")\n'
+                  '        tl_dir = os.path.expanduser("~/moonraker-timelapse")\n'
+                  '        if not os.path.exists(tl_dir):\n'
+                  '            os.system("git clone https://gitee.com/ydd632184193/moonraker-timelapse.git ~/moonraker-timelapse")\n'
+                  '        print("[INFO] 正在执行官方安装脚本 (make install)...")\n'
+                  '        os.system("cd ~/moonraker-timelapse && make install")\n'
+                  '        print("[INFO] 正在检查依赖和配置文件...")\n'
+                  '        os.system("sudo apt install ffmpeg -y")\n'
+                  '        conf_path = os.path.expanduser("~/printer_data/config/moonraker.conf")\n'
+                  '        with open(conf_path, "r") as f:\n'
+                  '            if "[timelapse]" not in f.read():\n'
+                  '                with open(conf_path, "a") as f_append:\n'
+                  '                    f_append.write("\\n[timelapse]\\n")\n'
+                  '        os.system("sudo systemctl restart moonraker")\n'
+                  '        print("\\n[OK] Timelapse 安装并配置完美成功！按回车返回菜单...")\n'
+                  '        input()\n'
+                  '\n'
+                  '    def install_crowsnest(self, **kwargs) -> None:\n'
+              )
+              content = content.replace('    def install_crowsnest(self, **kwargs) -> None:\n', method)
+
+          with open(file_path, 'w', encoding='utf-8') as f:
+              f.write(content)
+          print("✅ KIAUH 自动化注入完成！")
+          PYEOF
+          
           python3 patch.py
           rm patch.py
           
