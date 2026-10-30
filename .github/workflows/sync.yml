@@ -1,0 +1,97 @@
+name: Sync All Source to Gitee
+
+on:
+  schedule:
+    - cron: '0 3 * * *' # 每天凌晨 3 点自动跑
+  workflow_dispatch: # 允许手动点击
+
+jobs:
+  sync-klipper:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync Klippername: Sync All Klipper Ecosystem to Gitee
+
+on:
+  schedule:
+    - cron: '0 3 * * *' # 每天凌晨 3 点自动跑
+  workflow_dispatch: # 允许手动点击
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false # 某个失败不影响其他
+      matrix:
+        include:
+          - repo: "Klipper3d/klipper.git"
+            gitee: "klipper"
+          - repo: "Arksine/moonraker.git"
+            gitee: "moonraker"
+          - repo: "KlipperScreen/KlipperScreen.git"
+            gitee: "KlipperScreen"
+          - repo: "julianschill/klipper-led_effect.git"
+            gitee: "klipper-led_effect"
+          - repo: "mainsail-crew/moonraker-timelapse.git"
+            gitee: "moonraker-timelapse"
+          - repo: "ArmoredTurtle/AFC-Klipper-Add-On.git"
+            gitee: "AFC-Klipper-Add-On"
+          - repo: "ArmoredTurtle/AFC-Klipper-Screen-Add-On.git"
+            gitee: "AFC-Klipper-Screen-Add-On"
+          - repo: "mainsail-crew/crowsnest.git"
+            gitee: "crowsnest"
+          - repo: "Donkie/Spoolman.git"
+            gitee: "Spoolman"
+          - repo: "fluidd-core/fluidd.git"
+            gitee: "fluidd"
+          - repo: "fluidd-core/fluidd-config.git"
+            gitee: "fluidd-config"
+          - repo: "mainsail-crew/mainsail.git"
+            gitee: "mainsail"
+          - repo: "mainsail-crew/mainsail-config.git"
+            gitee: "mainsail-config"
+          - repo: "Arksine/katapult.git"
+            gitee: "katapult"
+          - repo: "Clon1998/mobileraker_companion.git"
+            gitee: "mobileraker_companion"
+          - repo: "prestonbrown/moonraker-obico.git"
+            gitee: "moonraker-obico"
+          - repo: "nlef/moonraker-telegram-bot.git"
+            gitee: "moonraker-telegram-bot"
+          - repo: "andrewmcgr/klipper_tmc_autotune.git"
+            gitee: "klipper_tmc_autotune"
+          - repo: "kyleisah/Klipper-Adaptive-Meshing-Purging.git"
+            gitee: "Klipper-Adaptive-Meshing-Purging"
+
+    steps:
+      - name: Sync ${{ matrix.repo }} to Gitee
+        run: |
+          echo "开始同步 ${{ matrix.repo }} 到 Gitee 的 ${{ matrix.gitee }} ..."
+          git clone --depth 1 https://github.com/${{ matrix.repo }} repo_temp
+          cd repo_temp
+          git remote set-url origin https://ydd632184193:${{ secrets.GITEE_TOKEN }}@gitee.com/ydd632184193/${{ matrix.gitee }}.git
+          git push -f origin HEAD:master
+        run: |
+          git clone --depth 1 https://github.com/Klipper3d/klipper.git
+          cd klipper
+          git remote set-url origin https://ydd632184193:${{ secrets.GITEE_TOKEN }}@gitee.com/ydd632184193/klipper.git
+          git push -f origin HEAD:master
+
+  sync-moonraker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync Moonraker
+        run: |
+          git clone --depth 1 https://github.com/Arksine/moonraker.git
+          cd moonraker
+          git remote set-url origin https://ydd632184193:${{ secrets.GITEE_TOKEN }}@gitee.com/ydd632184193/moonraker.git
+          git push -f origin HEAD:master
+
+  sync-kiauh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync KIAUH
+        run: |
+          git clone --depth 1 https://github.com/dw-0/kiauh.git
+          cd kiauh
+          git remote set-url origin https://ydd632184193:${{ secrets.GITEE_TOKEN }}@gitee.com/ydd632184193/kiauh.git
+          git push -f origin HEAD:master
