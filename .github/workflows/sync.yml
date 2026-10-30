@@ -57,15 +57,16 @@ jobs:
         run: |
           set -euo pipefail
           echo "Syncing ${{ matrix.repo }} ..."
-          # 使用 --mirror 拉取所有分支和 Tag
           git clone --mirror https://github.com/${{ matrix.repo }} repo_temp
           cd repo_temp
           git remote set-url origin https://ydd632184193:${{ secrets.GITEE_TOKEN }}@gitee.com/ydd632184193/${{ matrix.gitee }}.git
           git config --global http.version HTTP/1.1
           
+          # 关键修复：解除 --mirror 留下的标记，否则后面带 refspec 的 push 会报错
+          git config --unset remote.origin.mirror || true
+          
           ok=0
           for i in 1 2 3; do
-            # 只推送分支和标签，避开 GitHub 特有的 refs/pull/*，防止 Gitee 拒绝
             if git push -f origin "refs/heads/*:refs/heads/*" "refs/tags/*:refs/tags/*"; then 
               ok=1
               break
@@ -87,7 +88,6 @@ jobs:
           set -euo pipefail
           cd kiauh-patched
           
-          # 1. 核心替换逻辑：用 Python 正则无视大小写和 .git 后缀，精准替换
           cat << 'PYEOF' > patch_urls.py
           import os, re
 
@@ -125,8 +125,8 @@ jobs:
                       with open(p, "r", encoding="utf-8", errors="ignore") as file:
                           content = file.read()
                       
-                      # 正则提取 github.com/owner/repo，忽略大小写，自动兼容可选的 .git
-                      new_content = re.sub(r"https://github\.com/([a-zA-Z0-9_.\-/]+?)(?:\.git)?(?=[\"'\s]|$)", repl, content, flags=re.IGNORECASE)
+                      # 关键修复：把 (?=[\"'\s]|$) 改为 (?=[^a-zA-Z0-9_.\-/]|$)，兼容逗号、分号等符号
+                      new_content = re.sub(r"https://github\.com/([a-zA-Z0-9_.\-]+/[a-zA-Z0-9_.\-]+?)(?:\.git)?(?=[^a-zA-Z0-9_.\-/]|$)", repl, content, flags=re.IGNORECASE)
                       
                       if new_content != content:
                           with open(p, "w", encoding="utf-8") as file:
@@ -137,7 +137,7 @@ jobs:
           python3 patch_urls.py
           rm patch_urls.py
 
-          # 2. 修正 Mainsail 和 Fluidd 的 Zip 包下载地址
+          # 修正 Mainsail 和 Fluidd 的 Zip 包下载地址
           if [ -f kiauh/components/webui_client/mainsail_data.py ]; then
             sed -i -E 's|BASE_DL_URL: str = ".*"|BASE_DL_URL: str = "https://gitee.com/ydd632184193/mainsail_zip/raw/master/"|g' kiauh/components/webui_client/mainsail_data.py
           fi
@@ -148,7 +148,7 @@ jobs:
             sed -i 's|/latest/download/|/|g' kiauh/components/webui_client/client_utils.py
           fi
 
-          # 3. 注入延时摄影选项与安装脚本
+          # 注入延时摄影
           cat << 'PYEOF' > patch_menu.py
           import os
           file_path = 'kiauh/core/menus/install_menu.py'
@@ -193,7 +193,6 @@ jobs:
           python3 patch_menu.py
           rm patch_menu.py
 
-          # 4. 安全校验与清理
           if grep -rn "Klipper3D/klipper\|Klipper3d/klipper" kiauh/ --include="*.py" | grep -v gitee; then
             echo "❌ 警告：仍有 Klipper 的 GitHub URL 残留！"
             exit 1
