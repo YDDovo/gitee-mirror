@@ -48,15 +48,28 @@ jobs:
             gitee: "klipper_tmc_autotune"
           - repo: "kyleisah/Klipper-Adaptive-Meshing-Purging.git"
             gitee: "Klipper-Adaptive-Meshing-Purging"
+          - repo: "TheSpaghettiDetective/moonraker-obico.git"
+            gitee: "moonraker-obico"
+          - repo: "QuinnDamerell/OctoPrint-OctoEverywhere.git"
+            gitee: "OctoPrint-OctoEverywhere"
     steps:
       - name: Sync ${{ matrix.repo }} to Gitee
         run: |
+          set -euo pipefail
           echo "Syncing ${{ matrix.repo }} ..."
-          git clone https://github.com/${{ matrix.repo }} repo_temp
+          # 使用 --mirror 拉取所有分支和 Tag，解决 KIAUH 找不到版本的问题
+          git clone --mirror https://github.com/${{ matrix.repo }} repo_temp
           cd repo_temp
           git remote set-url origin https://ydd632184193:${{ secrets.GITEE_TOKEN }}@gitee.com/ydd632184193/${{ matrix.gitee }}.git
           git config --global http.version HTTP/1.1
-          for i in 1 2 3; do git push -f origin HEAD:master && break || sleep 5; done
+          
+          ok=0
+          for i in 1 2 3; do
+            if git push --mirror -f origin; then ok=1; break; fi
+            echo "Push failed, retrying ($i/3)..."
+            sleep 5
+          done
+          if [ $ok -ne 1 ]; then echo "❌ Failed to push ${{ matrix.repo }}"; exit 1; fi
 
   sync-kiauh-patched:
     runs-on: ubuntu-latest
@@ -67,40 +80,74 @@ jobs:
           
       - name: Apply Gitee Mirrors Patch & Inject Timelapse
         run: |
+          set -euo pipefail
           cd kiauh-patched
           
-          # 1. 基础替换（把 github.com 换成你的 gitee.com）
-          FILES=$(grep -rl "https://github.com" . --include="*.py" --include="*.cfg" --include="*.sh" || true)
-          if [ -n "$FILES" ]; then
-            sed -i \
-              -e 's|https://github.com/Klipper3d/klipper.git|https://gitee.com/ydd632184193/klipper.git|g' \
-              -e 's|https://github.com/Arksine/moonraker.git|https://gitee.com/ydd632184193/moonraker.git|g' \
-              -e 's|https://github.com/KlipperScreen/KlipperScreen.git|https://gitee.com/ydd632184193/KlipperScreen.git|g' \
-              -e 's|https://github.com/mainsail-crew/crowsnest.git|https://gitee.com/ydd632184193/crowsnest.git|g' \
-              -e 's|https://github.com/mainsail-crew/mainsail-config.git|https://gitee.com/ydd632184193/mainsail-config.git|g' \
-              -e 's|https://github.com/fluidd-core/fluidd-config.git|https://gitee.com/ydd632184193/fluidd-config.git|g' \
-              -e 's|https://github.com/kyleisah/Klipper-Adaptive-Meshing-Purging|https://gitee.com/ydd632184193/Klipper-Adaptive-Meshing-Purging|g' \
-              -e 's|https://github.com/andrewmcgr/klipper_tmc_autotune|https://gitee.com/ydd632184193/klipper_tmc_autotune|g' \
-              -e 's|https://github.com/Donkie/Spoolman|https://gitee.com/ydd632184193/Spoolman|g' \
-              -e 's|https://github.com/Clon1998/mobileraker_companion|https://gitee.com/ydd632184193/mobileraker_companion|g' \
-              -e 's|https://github.com/nlef/moonraker-telegram-bot|https://gitee.com/ydd632184193/moonraker-telegram-bot|g' \
-              -e 's|https://github.com/mainsail-crew/moonraker-timelapse|https://gitee.com/ydd632184193/moonraker-timelapse|g' \
-              -e 's|https://github.com/TheSpaghettiDetective/moonraker-obico|https://gitee.com/ydd632184193/moonraker-obico|g' \
-              -e 's|https://github.com/QuinnDamerell/OctoPrint-OctoEverywhere|https://gitee.com/ydd632184193/OctoPrint-OctoEverywhere|g' \
-              $FILES
-          fi
+          # 1. 核心替换逻辑：用 Python 正则无视大小写和 .git 后缀，精准替换
+          cat << 'PYEOF' > patch_urls.py
+          import os, re
 
-          # 2. 修正 Mainsail 下载
+          mapping = {
+              "klipper3d/klipper": "klipper",
+              "arksine/moonraker": "moonraker",
+              "klipperscreen/klipperscreen": "KlipperScreen",
+              "mainsail-crew/crowsnest": "crowsnest",
+              "mainsail-crew/mainsail-config": "mainsail-config",
+              "fluidd-core/fluidd-config": "fluidd-config",
+              "kyleisah/klipper-adaptive-meshing-purging": "Klipper-Adaptive-Meshing-Purging",
+              "andrewmcgr/klipper_tmc_autotune": "klipper_tmc_autotune",
+              "donkie/spoolman": "Spoolman",
+              "clon1998/mobileraker_companion": "mobileraker_companion",
+              "nlef/moonraker-telegram-bot": "moonraker-telegram-bot",
+              "mainsail-crew/moonraker-timelapse": "moonraker-timelapse",
+              "thespaghettidetective/moonraker-obico": "moonraker-obico",
+              "quinn-damerell/octoprint-octoeverywhere": "OctoPrint-OctoEverywhere",
+              "quinn-damerell/octoeverywhere": "OctoPrint-OctoEverywhere",
+          }
+
+          def repl(m):
+              repo = m.group(1).lower()
+              if repo.endswith(".git"):
+                  repo = repo[:-4]
+              if repo in mapping:
+                  return f"https://gitee.com/ydd632184193/{mapping[repo]}.git"
+              return m.group(0)
+
+          # 遍历所有源码和配置文件
+          for root, dirs, files in os.walk("."):
+              if ".git" in root: continue
+              for f in files:
+                  if f.endswith((".py", ".cfg", ".sh", ".txt")):
+                      p = os.path.join(root, f)
+                      with open(p, "r", encoding="utf-8", errors="ignore") as file:
+                          content = file.read()
+                      
+                      # 正则提取 github.com/owner/repo，忽略大小写，自动兼容可选的 .git
+                      new_content = re.sub(r"https://github\.com/([a-zA-Z0-9_.\-/]+?)(?:\.git)?(?=[\"'\s]|$)", repl, content, flags=re.IGNORECASE)
+                      
+                      if new_content != content:
+                          with open(p, "w", encoding="utf-8") as file:
+                              file.write(new_content)
+          print("✅ GitHub 到 Gitee 的 URL 替换已完成！")
+          PYEOF
+          
+          python3 patch_urls.py
+          rm patch_urls.py
+
+          # 2. 修正 Mainsail 和 Fluidd 的 Zip 包下载地址
           if [ -f kiauh/components/webui_client/mainsail_data.py ]; then
             sed -i -E 's|BASE_DL_URL: str = ".*"|BASE_DL_URL: str = "https://gitee.com/ydd632184193/mainsail_zip/raw/master/"|g' kiauh/components/webui_client/mainsail_data.py
+          fi
+          if [ -f kiauh/components/webui_client/fluidd_data.py ]; then
+            sed -i -E 's|BASE_DL_URL: str = ".*"|BASE_DL_URL: str = "https://gitee.com/ydd632184193/fluidd_zip/raw/master/"|g' kiauh/components/webui_client/fluidd_data.py
           fi
           if [ -f kiauh/components/webui_client/client_utils.py ]; then
             sed -i 's|/latest/download/|/|g' kiauh/components/webui_client/client_utils.py
           fi
 
-          # 3. 提取出安全的 Python 脚本文件 (绝对不会有缩进错位)
-          cat << 'PYEOF' > patch.py
-          import re
+          # 3. 注入延时摄影选项与安装脚本
+          cat << 'PYEOF' > patch_menu.py
+          import os
           file_path = 'kiauh/core/menus/install_menu.py'
           with open(file_path, 'r', encoding='utf-8') as f:
               content = f.read()
@@ -122,10 +169,11 @@ jobs:
                   '        print("[INFO] 正在检查依赖和配置文件...")\n'
                   '        os.system("sudo apt install ffmpeg -y")\n'
                   '        conf_path = os.path.expanduser("~/printer_data/config/moonraker.conf")\n'
-                  '        with open(conf_path, "r") as f:\n'
-                  '            if "[timelapse]" not in f.read():\n'
-                  '                with open(conf_path, "a") as f_append:\n'
-                  '                    f_append.write("\\n[timelapse]\\n")\n'
+                  '        if os.path.exists(conf_path):\n'
+                  '            with open(conf_path, "r") as f:\n'
+                  '                if "[timelapse]" not in f.read():\n'
+                  '                    with open(conf_path, "a") as f_append:\n'
+                  '                        f_append.write("\\n[timelapse]\\n")\n'
                   '        os.system("sudo systemctl restart moonraker")\n'
                   '        print("\\n[OK] Timelapse 安装并配置完美成功！按回车返回菜单...")\n'
                   '        input()\n'
@@ -136,17 +184,26 @@ jobs:
 
           with open(file_path, 'w', encoding='utf-8') as f:
               f.write(content)
-          print("✅ KIAUH 自动化注入完成！")
+          print("✅ 延时摄影注入完成！")
           PYEOF
           
-          python3 patch.py
-          rm patch.py
+          python3 patch_menu.py
+          rm patch_menu.py
+
+          # 4. 安全校验与清理
+          # 严格检查是否还有漏网的 Github Klipper URL
+          if grep -rn "Klipper3D/klipper\|Klipper3d/klipper" kiauh/ --include="*.py" | grep -v gitee; then
+            echo "❌ 警告：仍有 Klipper 的 GitHub URL 残留！"
+            exit 1
+          fi
+          # 编译检查，防止 Python 缩进被破坏
+          python3 -m py_compile $(find kiauh -name "*.py") || { echo "❌ Python 语法校验失败"; exit 1; }
           
-          # 4. 清理缓存
           find . -type d -name "__pycache__" -exec rm -rf {} + || true
-          
+
       - name: Commit and Push to Gitee
         run: |
+          set -euo pipefail
           cd kiauh-patched
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
@@ -154,4 +211,11 @@ jobs:
           git commit -m "Auto patch: Gitee mirrors, Mainsail URL fix, & Timelapse injection" || echo "Nothing to commit"
           git remote set-url origin https://ydd632184193:${{ secrets.GITEE_TOKEN }}@gitee.com/ydd632184193/kiauh.git
           git config --global http.version HTTP/1.1
-          for i in 1 2 3; do git push -f origin HEAD:master && break || sleep 5; done
+          
+          ok=0
+          for i in 1 2 3; do
+            if git push -f origin HEAD:master; then ok=1; break; fi
+            echo "Push failed, retrying ($i/3)..."
+            sleep 5
+          done
+          if [ $ok -ne 1 ]; then echo "❌ Failed to push KIAUH"; exit 1; fi
