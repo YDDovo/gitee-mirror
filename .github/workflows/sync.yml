@@ -98,44 +98,44 @@ jobs:
             sed -i 's|/latest/download/|/|g' kiauh/components/webui_client/client_utils.py
           fi
 
-          # 3. 执行 Python 脚本注入 9) [Timelapse]
+          # 3. 执行 Python 脚本注入 9) [Timelapse] (注意这里所有 python 代码都严格缩进在 run: | 之下)
           python3 - <<'PYEOF'
-          import re
-          file_path = 'kiauh/core/menus/install_menu.py'
-          with open(file_path, 'r', encoding='utf-8') as f:
-              content = f.read()
+import re
+file_path = 'kiauh/core/menus/install_menu.py'
+with open(file_path, 'r', encoding='utf-8') as f:
+    content = f.read()
 
-          if '"9": Option' not in content:
-              content = content.replace('"8": Option(method=self.install_crowsnest),', '"8": Option(method=self.install_crowsnest),\n            "9": Option(method=self.install_timelapse),')
-              content = content.replace('║  3) [Mainsail]            │                           ║', '║  3) [Mainsail]            │  9) [Timelapse]           ║')
+if '"9": Option' not in content:
+    content = content.replace('"8": Option(method=self.install_crowsnest),', '"8": Option(method=self.install_crowsnest),\n            "9": Option(method=self.install_timelapse),')
+    content = content.replace('║  3) [Mainsail]            │                           ║', '║  3) [Mainsail]            │  9) [Timelapse]           ║')
 
-          if 'def install_timelapse' not in content:
-              method = """    def install_timelapse(self, **kwargs) -> None:
-              import os
-              print("\\n[INFO] 正在从你的 Gitee 仓库安装 Moonraker-Timelapse...")
-              tl_dir = os.path.expanduser("~/moonraker-timelapse")
-              if not os.path.exists(tl_dir):
-                  os.system("git clone https://gitee.com/ydd632184193/moonraker-timelapse.git ~/moonraker-timelapse")
-              print("[INFO] 正在执行官方安装脚本 (make install)...")
-              os.system("cd ~/moonraker-timelapse && make install")
-              print("[INFO] 正在检查依赖和配置文件...")
-              os.system("sudo apt install ffmpeg -y")
-              conf_path = os.path.expanduser("~/printer_data/config/moonraker.conf")
-              with open(conf_path, "r") as f:
-                  if "[timelapse]" not in f.read():
-                      with open(conf_path, "a") as f_append:
-                          f_append.write("\\n[timelapse]\\n")
-              os.system("sudo systemctl restart moonraker")
-              print("\\n[OK] Timelapse 安装并配置完美成功！按回车返回菜单...")
-              input()
+if 'def install_timelapse' not in content:
+    method = """    def install_timelapse(self, **kwargs) -> None:
+        import os
+        print("\\n[INFO] 正在从你的 Gitee 仓库安装 Moonraker-Timelapse...")
+        tl_dir = os.path.expanduser("~/moonraker-timelapse")
+        if not os.path.exists(tl_dir):
+            os.system("git clone https://gitee.com/ydd632184193/moonraker-timelapse.git ~/moonraker-timelapse")
+        print("[INFO] 正在执行官方安装脚本 (make install)...")
+        os.system("cd ~/moonraker-timelapse && make install")
+        print("[INFO] 正在检查依赖和配置文件...")
+        os.system("sudo apt install ffmpeg -y")
+        conf_path = os.path.expanduser("~/printer_data/config/moonraker.conf")
+        with open(conf_path, "r") as f:
+            if "[timelapse]" not in f.read():
+                with open(conf_path, "a") as f_append:
+                    f_append.write("\\n[timelapse]\\n")
+        os.system("sudo systemctl restart moonraker")
+        print("\\n[OK] Timelapse 安装并配置完美成功！按回车返回菜单...")
+        input()
 
-          def install_crowsnest(self, **kwargs) -> None:"""
-              content = content.replace('    def install_crowsnest(self, **kwargs) -> None:', method)
+    def install_crowsnest(self, **kwargs) -> None:"""
+    content = content.replace('    def install_crowsnest(self, **kwargs) -> None:', method)
 
-          with open(file_path, 'w', encoding='utf-8') as f:
-              f.write(content)
-          print("✅ KIAUH 自动化注入完成！")
-          PYEOF
+with open(file_path, 'w', encoding='utf-8') as f:
+    f.write(content)
+print("✅ KIAUH 自动化注入完成！")
+PYEOF
 
           # 4. 清理缓存
           find . -type d -name "__pycache__" -exec rm -rf {} + || true
