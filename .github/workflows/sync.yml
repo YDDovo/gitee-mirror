@@ -57,7 +57,7 @@ jobs:
         run: |
           set -euo pipefail
           echo "Syncing ${{ matrix.repo }} ..."
-          # 使用 --mirror 拉取所有分支和 Tag，解决 KIAUH 找不到版本的问题
+          # 使用 --mirror 拉取所有分支和 Tag
           git clone --mirror https://github.com/${{ matrix.repo }} repo_temp
           cd repo_temp
           git remote set-url origin https://ydd632184193:${{ secrets.GITEE_TOKEN }}@gitee.com/ydd632184193/${{ matrix.gitee }}.git
@@ -65,7 +65,11 @@ jobs:
           
           ok=0
           for i in 1 2 3; do
-            if git push --mirror -f origin; then ok=1; break; fi
+            # 只推送分支和标签，避开 GitHub 特有的 refs/pull/*，防止 Gitee 拒绝
+            if git push -f origin "refs/heads/*:refs/heads/*" "refs/tags/*:refs/tags/*"; then 
+              ok=1
+              break
+            fi
             echo "Push failed, retrying ($i/3)..."
             sleep 5
           done
@@ -113,7 +117,6 @@ jobs:
                   return f"https://gitee.com/ydd632184193/{mapping[repo]}.git"
               return m.group(0)
 
-          # 遍历所有源码和配置文件
           for root, dirs, files in os.walk("."):
               if ".git" in root: continue
               for f in files:
@@ -191,14 +194,11 @@ jobs:
           rm patch_menu.py
 
           # 4. 安全校验与清理
-          # 严格检查是否还有漏网的 Github Klipper URL
           if grep -rn "Klipper3D/klipper\|Klipper3d/klipper" kiauh/ --include="*.py" | grep -v gitee; then
             echo "❌ 警告：仍有 Klipper 的 GitHub URL 残留！"
             exit 1
           fi
-          # 编译检查，防止 Python 缩进被破坏
           python3 -m py_compile $(find kiauh -name "*.py") || { echo "❌ Python 语法校验失败"; exit 1; }
-          
           find . -type d -name "__pycache__" -exec rm -rf {} + || true
 
       - name: Commit and Push to Gitee
