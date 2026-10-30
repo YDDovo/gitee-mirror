@@ -56,7 +56,7 @@ jobs:
           cd repo_temp
           git remote set-url origin https://ydd632184193:${{ secrets.GITEE_TOKEN }}@gitee.com/ydd632184193/${{ matrix.gitee }}.git
           git config --global http.version HTTP/1.1
-          for i in 1 2 3; do git push -f origin HEAD:master && break || sleep 5; done
+          git push -f origin HEAD:master
 
   sync-kiauh-patched:
     runs-on: ubuntu-latest
@@ -65,38 +65,13 @@ jobs:
         run: |
           git clone https://github.com/dw-0/kiauh.git kiauh-patched
           
-      - name: Apply Gitee Mirrors Patch (暴力全量替换)
+      - name: Apply Gitee Mirrors Patch (暴力全局替换)
         run: |
           cd kiauh-patched
+          find . -type f \( -name "*.py" -o -name "*.cfg" -o -name "*.sh" \) -exec sed -i 's|https://github.com|https://gitee.com/ydd632184193|g' {} +
           
-          # 使用 grep 找出所有包含 github.com 的文本文件，直接传递给 sed 替换，不用 find 了
-          FILES=$(grep -rl "https://github.com" . --include="*.py" --include="*.cfg" --include="*.sh" --include="*.txt" || true)
-          
-          if [ -n "$FILES" ]; then
-            # 替换核心组件 (注意这里我没写 .git 后缀，避免变成 .git.git)
-            sed -i -e 's|https://github.com/Klipper3d/klipper|https://gitee.com/ydd632184193/klipper|g' \
-                   -e 's|https://github.com/Arksine/moonraker|https://gitee.com/ydd632184193/moonraker|g' \
-                   -e 's|https://github.com/KlipperScreen/KlipperScreen|https://gitee.com/ydd632184193/KlipperScreen|g' \
-                   -e 's|https://github.com/mainsail-crew/crowsnest|https://gitee.com/ydd632184193/crowsnest|g' \
-                   -e 's|https://github.com/mainsail-crew/mainsail-config|https://gitee.com/ydd632184193/mainsail-config|g' \
-                   -e 's|https://github.com/fluidd-core/fluidd-config|https://gitee.com/ydd632184193/fluidd-config|g' \
-                   -e 's|https://github.com/kyleisah/Klipper-Adaptive-Meshing-Purging|https://gitee.com/ydd632184193/Klipper-Adaptive-Meshing-Purging|g' \
-                   -e 's|https://github.com/andrewmcgr/klipper_tmc_autotune|https://gitee.com/ydd632184193/klipper_tmc_autotune|g' \
-                   -e 's|https://github.com/Donkie/Spoolman|https://gitee.com/ydd632184193/Spoolman|g' \
-                   -e 's|https://github.com/Clon1998/mobileraker_companion|https://gitee.com/ydd632184193/mobileraker_companion|g' \
-                   -e 's|https://github.com/nlef/moonraker-telegram-bot|https://gitee.com/ydd632184193/moonraker-telegram-bot|g' \
-                   -e 's|https://github.com/mainsail-crew/moonraker-timelapse|https://gitee.com/ydd632184193/moonraker-timelapse|g' \
-                   -e 's|https://github.com/TheSpaghettiDetective/moonraker-obico|https://gitee.com/ydd632184193/moonraker-obico|g' \
-                   -e 's|https://github.com/QuinnDamerell/OctoPrint-OctoEverywhere|https://gitee.com/ydd632184193/OctoPrint-OctoEverywhere|g' \
-                   $FILES
-          fi
-
-          # 单独处理 Mainsail 的 ZIP 下载地址（如果存在的话）
-          ZIP_FILES=$(grep -rl "mainsail.zip" . --include="*.py" || true)
-          if [ -n "$ZIP_FILES" ]; then
-             sed -i -E 's|https://api.github.com/repos/mainsail-crew/mainsail/releases/latest|https://gitee.com/ydd632184193/mainsail_zip/raw/master/mainsail.zip|g' $ZIP_FILES
-             sed -i -E 's|https://github.com/mainsail-crew/mainsail/releases/download/.*/mainsail.zip|https://gitee.com/ydd632184193/mainsail_zip/raw/master/mainsail.zip|g' $ZIP_FILES
-          fi
+          echo "--- 替换后 klipper 的 URL 如下 ---"
+          grep "KLIPPER_REPO_URL" kiauh/components/klipper/__init__.py
           
       - name: Commit and Push to Gitee
         run: |
@@ -105,4 +80,6 @@ jobs:
           git config --global user.email "action@github.com"
           git remote set-url origin https://ydd632184193:${{ secrets.GITEE_TOKEN }}@gitee.com/ydd632184193/kiauh.git
           git config --global http.version HTTP/1.1
-          for i in 1 2 3; do git push -f origin HEAD:master && break || sleep 5; done
+          
+          # 这里去掉了 for 循环，如果不成功，直接红叉报错，绝不掩盖！
+          git push -f origin HEAD:master
