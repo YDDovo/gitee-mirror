@@ -98,8 +98,8 @@ jobs:
             sed -i 's|/latest/download/|/|g' kiauh/components/webui_client/client_utils.py
           fi
 
-          # 3. 执行 Python 脚本注入 9) [Timelapse] (注意这里所有 python 代码都严格缩进在 run: | 之下)
-          python3 - <<'PYEOF'
+          # 3. 提取出安全的 Python 脚本文件 (绝对不会有缩进错位)
+          cat << 'PYEOF' > patch.py
 import re
 file_path = 'kiauh/core/menus/install_menu.py'
 with open(file_path, 'r', encoding='utf-8') as f:
@@ -136,7 +136,10 @@ with open(file_path, 'w', encoding='utf-8') as f:
     f.write(content)
 print("✅ KIAUH 自动化注入完成！")
 PYEOF
-
+          
+          python3 patch.py
+          rm patch.py
+          
           # 4. 清理缓存
           find . -type d -name "__pycache__" -exec rm -rf {} + || true
           
