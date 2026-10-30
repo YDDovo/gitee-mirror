@@ -42,8 +42,6 @@ jobs:
             gitee: "katapult"
           - repo: "Clon1998/mobileraker_companion.git"
             gitee: "mobileraker_companion"
-          - repo: "prestonbrown/moonraker-obico.git"
-            gitee: "moonraker-obico"
           - repo: "nlef/moonraker-telegram-bot.git"
             gitee: "moonraker-telegram-bot"
           - repo: "andrewmcgr/klipper_tmc_autotune.git"
@@ -55,7 +53,8 @@ jobs:
       - name: Sync ${{ matrix.repo }} to Gitee
         run: |
           echo "Syncing ${{ matrix.repo }} ..."
-          git clone --depth 1 https://github.com/${{ matrix.repo }} repo_temp
+          # 去掉了 --depth 1，改为全量克隆，防止 Gitee 拒绝接收
+          git clone https://github.com/${{ matrix.repo }} repo_temp
           cd repo_temp
           git remote set-url origin https://ydd632184193:${{ secrets.GITEE_TOKEN }}@gitee.com/ydd632184193/${{ matrix.gitee }}.git
           git push -f origin HEAD:master
