@@ -125,7 +125,7 @@ jobs:
                       with open(p, "r", encoding="utf-8", errors="ignore") as file:
                           content = file.read()
                       
-                      # 关键修复：把 (?=[\"'\s]|$) 改为 (?=[^a-zA-Z0-9_.\-/]|$)，兼容逗号、分号等符号
+                      # 兼容逗号、分号等符号的正则
                       new_content = re.sub(r"https://github\.com/([a-zA-Z0-9_.\-]+/[a-zA-Z0-9_.\-]+?)(?:\.git)?(?=[^a-zA-Z0-9_.\-/]|$)", repl, content, flags=re.IGNORECASE)
                       
                       if new_content != content:
@@ -137,12 +137,12 @@ jobs:
           python3 patch_urls.py
           rm patch_urls.py
 
-          # 修正 Mainsail 和 Fluidd 的 Zip 包下载地址
+          # 修正 Mainsail 和 Fluidd 的 Zip 包下载地址 (兼容有无类型声明 : str 的情况)
           if [ -f kiauh/components/webui_client/mainsail_data.py ]; then
-            sed -i -E 's|BASE_DL_URL: str = ".*"|BASE_DL_URL: str = "https://gitee.com/ydd632184193/mainsail_zip/raw/master/"|g' kiauh/components/webui_client/mainsail_data.py
+            sed -i -E 's|(BASE_DL_URL.*=\s*)"https://github.com/.*"|\1"https://gitee.com/ydd632184193/mainsail_zip/raw/master/"|g' kiauh/components/webui_client/mainsail_data.py
           fi
           if [ -f kiauh/components/webui_client/fluidd_data.py ]; then
-            sed -i -E 's|BASE_DL_URL: str = ".*"|BASE_DL_URL: str = "https://gitee.com/ydd632184193/fluidd_zip/raw/master/"|g' kiauh/components/webui_client/fluidd_data.py
+            sed -i -E 's|(BASE_DL_URL.*=\s*)"https://github.com/.*"|\1"https://gitee.com/ydd632184193/fluidd_zip/raw/master/"|g' kiauh/components/webui_client/fluidd_data.py
           fi
           if [ -f kiauh/components/webui_client/client_utils.py ]; then
             sed -i 's|/latest/download/|/|g' kiauh/components/webui_client/client_utils.py
@@ -216,7 +216,7 @@ jobs:
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
           git add .
-          git commit -m "Auto patch: Gitee mirrors, Mainsail URL fix, & Timelapse injection" || echo "Nothing to commit"
+          git commit -m "Auto patch: Gitee mirrors, Mainsail/Fluidd URL fix, & Timelapse injection" || echo "Nothing to commit"
           git remote set-url origin https://ydd632184193:${{ secrets.GITEE_TOKEN }}@gitee.com/ydd632184193/kiauh.git
           git config --global http.version HTTP/1.1
           
