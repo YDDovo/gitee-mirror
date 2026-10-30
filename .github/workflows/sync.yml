@@ -56,7 +56,7 @@ jobs:
           cd repo_temp
           git remote set-url origin https://ydd632184193:${{ secrets.GITEE_TOKEN }}@gitee.com/ydd632184193/${{ matrix.gitee }}.git
           git config --global http.version HTTP/1.1
-          git push -f origin HEAD:master
+          for i in 1 2 3; do git push -f origin HEAD:master && break || sleep 5; done
 
   sync-kiauh-patched:
     runs-on: ubuntu-latest
@@ -65,27 +65,20 @@ jobs:
         run: |
           git clone https://github.com/dw-0/kiauh.git kiauh-patched
           
-      - name: Apply Gitee Mirrors Patch (精准替换)
+      - name: Apply Gitee Mirrors Patch (终极缝合怪)
         run: |
           cd kiauh-patched
           
-          # 使用 grep 找出包含 github.com 的文件，并用精确匹配替换（保留 .git 后缀逻辑）
+          # 1. 基础替换（把 github.com 换成你的 gitee.com）
           FILES=$(grep -rl "https://github.com" . --include="*.py" --include="*.cfg" --include="*.sh" || true)
-          
           if [ -n "$FILES" ]; then
             sed -i \
               -e 's|https://github.com/Klipper3d/klipper.git|https://gitee.com/ydd632184193/klipper.git|g' \
-              -e 's|https://github.com/Klipper3d/klipper|https://gitee.com/ydd632184193/klipper|g' \
               -e 's|https://github.com/Arksine/moonraker.git|https://gitee.com/ydd632184193/moonraker.git|g' \
-              -e 's|https://github.com/Arksine/moonraker|https://gitee.com/ydd632184193/moonraker|g' \
               -e 's|https://github.com/KlipperScreen/KlipperScreen.git|https://gitee.com/ydd632184193/KlipperScreen.git|g' \
-              -e 's|https://github.com/KlipperScreen/KlipperScreen|https://gitee.com/ydd632184193/KlipperScreen|g' \
               -e 's|https://github.com/mainsail-crew/crowsnest.git|https://gitee.com/ydd632184193/crowsnest.git|g' \
-              -e 's|https://github.com/mainsail-crew/crowsnest|https://gitee.com/ydd632184193/crowsnest|g' \
               -e 's|https://github.com/mainsail-crew/mainsail-config.git|https://gitee.com/ydd632184193/mainsail-config.git|g' \
-              -e 's|https://github.com/mainsail-crew/mainsail-config|https://gitee.com/ydd632184193/mainsail-config|g' \
               -e 's|https://github.com/fluidd-core/fluidd-config.git|https://gitee.com/ydd632184193/fluidd-config.git|g' \
-              -e 's|https://github.com/fluidd-core/fluidd-config|https://gitee.com/ydd632184193/fluidd-config|g' \
               -e 's|https://github.com/kyleisah/Klipper-Adaptive-Meshing-Purging|https://gitee.com/ydd632184193/Klipper-Adaptive-Meshing-Purging|g' \
               -e 's|https://github.com/andrewmcgr/klipper_tmc_autotune|https://gitee.com/ydd632184193/klipper_tmc_autotune|g' \
               -e 's|https://github.com/Donkie/Spoolman|https://gitee.com/ydd632184193/Spoolman|g' \
@@ -95,25 +88,26 @@ jobs:
               -e 's|https://github.com/TheSpaghettiDetective/moonraker-obico|https://gitee.com/ydd632184193/moonraker-obico|g' \
               -e 's|https://github.com/QuinnDamerell/OctoPrint-OctoEverywhere|https://gitee.com/ydd632184193/OctoPrint-OctoEverywhere|g' \
               $FILES
-              
-            # 特别处理 Mainsail 的 zip
-            sed -i -E 's|https://api.github.com/repos/mainsail-crew/mainsail/releases/latest|https://gitee.com/ydd632184193/mainsail_zip/raw/master/mainsail.zip|g' $FILES
-            sed -i -E 's|https://github.com/mainsail-crew/mainsail/releases/download/.*/mainsail.zip|https://gitee.com/ydd632184193/mainsail_zip/raw/master/mainsail.zip|g' $FILES
           fi
-          
-          echo "--- 检查替换后的 URL ---"
-          grep "KLIPPER_REPO_URL" kiauh/components/klipper/__init__.py || true
 
+          # 2. 【终极杀手锏】干掉 KIAUH 最新版的恶心 URL 拼接逻辑！
+          # 修正 Mainsail 基础路径
+          sed -i -E 's|BASE_DL_URL: str = ".*"|BASE_DL_URL: str = "https://gitee.com/ydd632184193/mainsail_zip/raw/master/"|g' kiauh/components/webui_client/mainsail_data.py || true
+          # 阉割后缀拼接（把 /latest/download/ 变成 /）
+          sed -i 's|/latest/download/|/|g' kiauh/components/webui_client/client_utils.py || true
+          
+          # 3. 彻底清理 Python 缓存，保证你在平板上拉下来绝不读旧代码
+          find . -type d -name "__pycache__" -exec rm -rf {} + || true
+          
       - name: Commit and Push to Gitee
         run: |
           cd kiauh-patched
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
-          
-          # 🚨 这里是最关键的一步：把修改过的文件提交到本地的 Git 记录里！
           git add .
-          git commit -m "Auto patched Gitee mirrors" || echo "Nothing to commit"
+          # 强制提交所有修改
+          git commit -m "Auto patched Gitee mirrors and fixed URL concatenation" || echo "Nothing to commit"
           
           git remote set-url origin https://ydd632184193:${{ secrets.GITEE_TOKEN }}@gitee.com/ydd632184193/kiauh.git
           git config --global http.version HTTP/1.1
-          git push -f origin HEAD:master
+          for i in 1 2 3; do git push -f origin HEAD:master && break || sleep 5; done
