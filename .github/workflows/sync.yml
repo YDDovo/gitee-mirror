@@ -55,7 +55,11 @@ jobs:
           git clone https://github.com/${{ matrix.repo }} repo_temp
           cd repo_temp
           git remote set-url origin https://ydd632184193:${{ secrets.GITEE_TOKEN }}@gitee.com/ydd632184193/${{ matrix.gitee }}.git
-          git push -f origin HEAD:master
+          
+          # 强制使用 HTTP/1.1 防止连接中断
+          git config --global http.version HTTP/1.1
+          # 如果推送失败，自动重试 3 次，每次间隔 5 秒
+          for i in 1 2 3; do git push -f origin HEAD:master && break || sleep 5; done
 
   sync-kiauh-patched:
     runs-on: ubuntu-latest
@@ -92,4 +96,8 @@ jobs:
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
           git remote set-url origin https://ydd632184193:${{ secrets.GITEE_TOKEN }}@gitee.com/ydd632184193/kiauh.git
-          git push -f origin HEAD:master
+          
+          # 强制使用 HTTP/1.1 防止连接中断
+          git config --global http.version HTTP/1.1
+          # 如果推送失败，自动重试 3 次，每次间隔 5 秒
+          for i in 1 2 3; do git push -f origin HEAD:master && break || sleep 5; done
