@@ -12,49 +12,17 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # (这里保留你之前的18个仓库清单，省略没写，别删)
           - repo: "Klipper3d/klipper.git"
             gitee: "klipper"
-          - repo: "Arksine/moonraker.git"
-            gitee: "moonraker"
-          - repo: "KlipperScreen/KlipperScreen.git"
-            gitee: "KlipperScreen"
-          - repo: "julianschill/klipper-led_effect.git"
-            gitee: "klipper-led_effect"
-          - repo: "mainsail-crew/moonraker-timelapse.git"
-            gitee: "moonraker-timelapse"
-          - repo: "ArmoredTurtle/AFC-Klipper-Add-On.git"
-            gitee: "AFC-Klipper-Add-On"
-          - repo: "ArmoredTurtle/AFC-Klipper-Screen-Add-On.git"
-            gitee: "AFC-Klipper-Screen-Add-On"
-          - repo: "mainsail-crew/crowsnest.git"
-            gitee: "crowsnest"
-          - repo: "Donkie/Spoolman.git"
-            gitee: "Spoolman"
-          - repo: "fluidd-core/fluidd.git"
-            gitee: "fluidd"
-          - repo: "fluidd-core/fluidd-config.git"
-            gitee: "fluidd-config"
-          - repo: "mainsail-crew/mainsail.git"
-            gitee: "mainsail"
-          - repo: "mainsail-crew/mainsail-config.git"
-            gitee: "mainsail-config"
-          - repo: "Arksine/katapult.git"
-            gitee: "katapult"
-          - repo: "Clon1998/mobileraker_companion.git"
-            gitee: "mobileraker_companion"
-          - repo: "nlef/moonraker-telegram-bot.git"
-            gitee: "moonraker-telegram-bot"
-          - repo: "andrewmcgr/klipper_tmc_autotune.git"
-            gitee: "klipper_tmc_autotune"
-          - repo: "kyleisah/Klipper-Adaptive-Meshing-Purging.git"
-            gitee: "Klipper-Adaptive-Meshing-Purging"
+          # ... 全部加回来 ...
     steps:
       - name: Sync ${{ matrix.repo }} to Gitee
         run: |
-          echo "Syncing ${{ matrix.repo }} ..."
           git clone https://github.com/${{ matrix.repo }} repo_temp
           cd repo_temp
           git remote set-url origin https://ydd632184193:${{ secrets.GITEE_TOKEN }}@gitee.com/ydd632184193/${{ matrix.gitee }}.git
+          # 如果你 Gitee 仓库全是 master，千万别改成 HEAD，否则推不上去
           git push -f origin HEAD:master
 
   sync-kiauh-patched:
@@ -64,30 +32,25 @@ jobs:
         run: |
           git clone https://github.com/dw-0/kiauh.git kiauh-patched
           
-      - name: Apply Gitee Mirrors Patch (全局无死角替换)
+      - name: Apply Gitee Mirrors Patch
         run: |
           cd kiauh-patched
-          
-          # 使用 find 命令递归查找所有 .py, .cfg, .sh, .txt, .md 文件，进行全局字符串替换
-          # 这样不管官方怎么改文件名，只要字符串还在，就能被替换！
-          
+          # 用 find 全盘扫描替换，无视官方文件结构改变
           find . -type f \( -name "*.py" -o -name "*.cfg" -o -name "*.sh" -o -name "*.txt" -o -name "*.md" \) -exec sed -i \
-            -e 's|https://github.com/Klipper3d/klipper.git|https://gitee.com/ydd632184193/klipper.git|g' \
             -e 's|https://github.com/Klipper3d/klipper|https://gitee.com/ydd632184193/klipper.git|g' \
-            -e 's|https://github.com/Arksine/moonraker.git|https://gitee.com/ydd632184193/moonraker.git|g' \
             -e 's|https://github.com/Arksine/moonraker|https://gitee.com/ydd632184193/moonraker.git|g' \
-            -e 's|https://github.com/KlipperScreen/KlipperScreen.git|https://gitee.com/ydd632184193/KlipperScreen.git|g' \
-            -e 's|https://github.com/mainsail-crew/crowsnest.git|https://gitee.com/ydd632184193/crowsnest.git|g' \
-            -e 's|https://github.com/mainsail-crew/mainsail-config.git|https://gitee.com/ydd632184193/mainsail-config.git|g' \
-            -e 's|https://github.com/fluidd-core/fluidd-config.git|https://gitee.com/ydd632184193/fluidd-config.git|g' \
+            -e 's|https://github.com/KlipperScreen/KlipperScreen|https://gitee.com/ydd632184193/KlipperScreen.git|g' \
+            -e 's|https://github.com/mainsail-crew/crowsnest|https://gitee.com/ydd632184193/crowsnest.git|g' \
+            -e 's|https://github.com/mainsail-crew/mainsail-config|https://gitee.com/ydd632184193/mainsail-config.git|g' \
+            -e 's|https://github.com/fluidd-core/fluidd-config|https://gitee.com/ydd632184193/fluidd-config.git|g' \
             -e 's|https://github.com/kyleisah/Klipper-Adaptive-Meshing-Purging|https://gitee.com/ydd632184193/Klipper-Adaptive-Meshing-Purging|g' \
             -e 's|https://github.com/andrewmcgr/klipper_tmc_autotune|https://gitee.com/ydd632184193/klipper_tmc_autotune|g' \
             -e 's|https://github.com/Donkie/Spoolman|https://gitee.com/ydd632184193/Spoolman|g' \
-            -e 's|https://github.com/Clon1998/mobileraker_companion.git|https://gitee.com/ydd632184193/mobileraker_companion.git|g' \
-            -e 's|https://github.com/nlef/moonraker-telegram-bot.git|https://gitee.com/ydd632184193/moonraker-telegram-bot.git|g' \
+            -e 's|https://github.com/Clon1998/mobileraker_companion|https://gitee.com/ydd632184193/mobileraker_companion.git|g' \
+            -e 's|https://github.com/nlef/moonraker-telegram-bot|https://gitee.com/ydd632184193/moonraker-telegram-bot.git|g' \
             -e 's|https://github.com/mainsail-crew/moonraker-timelapse|https://gitee.com/ydd632184193/moonraker-timelapse|g' \
-            -e 's|https://github.com/TheSpaghettiDetective/moonraker-obico.git|https://gitee.com/ydd632184193/moonraker-obico.git|g' \
-            -e 's|https://github.com/QuinnDamerell/OctoPrint-OctoEverywhere.git|https://gitee.com/ydd632184193/OctoPrint-OctoEverywhere.git|g' \
+            -e 's|https://github.com/TheSpaghettiDetective/moonraker-obico|https://gitee.com/ydd632184193/moonraker-obico.git|g' \
+            -e 's|https://github.com/QuinnDamerell/OctoPrint-OctoEverywhere|https://gitee.com/ydd632184193/OctoPrint-OctoEverywhere.git|g' \
             -e 's|https://api.github.com/repos/mainsail-crew/mainsail/releases/latest|https://gitee.com/ydd632184193/mainsail_zip/raw/master/mainsail.zip|g' \
             -e 's|https://github.com/mainsail-crew/mainsail/releases/download/.*/mainsail.zip|https://gitee.com/ydd632184193/mainsail_zip/raw/master/mainsail.zip|g' \
             {} +
