@@ -6,7 +6,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  # 这是你原来那 18 个普通仓库的同步
   sync-others:
     runs-on: ubuntu-latest
     strategy:
@@ -58,7 +57,6 @@ jobs:
           git remote set-url origin https://ydd632184193:${{ secrets.GITEE_TOKEN }}@gitee.com/ydd632184193/${{ matrix.gitee }}.git
           git push -f origin HEAD:master
 
-  # 🚨 这是专门为 KIAUH 写的“自动化打补丁”任务
   sync-kiauh-patched:
     runs-on: ubuntu-latest
     steps:
@@ -66,40 +64,38 @@ jobs:
         run: |
           git clone https://github.com/dw-0/kiauh.git kiauh-patched
           
-      - name: Apply Gitee Mirrors Patch (自动替换源)
+      - name: Apply Gitee Mirrors Patch (全局无死角替换)
         run: |
           cd kiauh-patched
-          # 1. 核心组件
-          sed -i 's|https://github.com/Klipper3d/klipper.git|https://gitee.com/ydd632184193/klipper.git|g' kiauh/components/klipper/__init__.py
-          sed -i 's|https://github.com/Arksine/moonraker.git|https://gitee.com/ydd632184193/moonraker.git|g' kiauh/components/moonraker/__init__.py
-          sed -i 's|https://github.com/KlipperScreen/KlipperScreen.git|https://gitee.com/ydd632184193/KlipperScreen.git|g' kiauh/components/klipperscreen/__init__.py
-          sed -i 's|https://github.com/mainsail-crew/crowsnest.git|https://gitee.com/ydd632184193/crowsnest.git|g' kiauh/components/crowsnest/__init__.py
-          sed -i 's|https://github.com/mainsail-crew/mainsail-config.git|https://gitee.com/ydd632184193/mainsail-config.git|g' kiauh/components/webui_client/mainsail_data.py
-          sed -i 's|https://github.com/fluidd-core/fluidd-config.git|https://gitee.com/ydd632184193/fluidd-config.git|g' kiauh/components/webui_client/fluidd_data.py
           
-          # 2. 前端 zip 劫持
-          sed -i 's|https://api.github.com/repos/mainsail-crew/mainsail/releases/latest|https://gitee.com/ydd632184193/mainsail_zip/raw/master/mainsail.zip|g' kiauh/components/webui_client/mainsail.py
-          sed -i 's|https://github.com/mainsail-crew/mainsail/releases/download/.*/mainsail.zip|https://gitee.com/ydd632184193/mainsail_zip/raw/master/mainsail.zip|g' kiauh/components/webui_client/mainsail.py
-
-          # 3. 扩展菜单
-          sed -i 's|https://github.com/kyleisah/Klipper-Adaptive-Meshing-Purging|https://gitee.com/ydd632184193/Klipper-Adaptive-Meshing-Purging|g' kiauh/extensions/klipper_adaptive_meshing_purging/__init__.py
-          sed -i 's|https://github.com/andrewmcgr/klipper_tmc_autotune|https://gitee.com/ydd632184193/klipper_tmc_autotune|g' kiauh/extensions/tmc_autotune/__init__.py
-          sed -i 's|https://github.com/Donkie/Spoolman|https://gitee.com/ydd632184193/Spoolman|g' kiauh/extensions/spoolman/__init__.py
-          sed -i 's|https://github.com/Clon1998/mobileraker_companion.git|https://gitee.com/ydd632184193/mobileraker_companion.git|g' kiauh/extensions/mobileraker/__init__.py
-          sed -i 's|https://github.com/nlef/moonraker-telegram-bot.git|https://gitee.com/ydd632184193/moonraker-telegram-bot.git|g' kiauh/extensions/telegram_bot/__init__.py
-          sed -i 's|https://github.com/mainsail-crew/moonraker-timelapse|https://gitee.com/ydd632184193/moonraker-timelapse|g' kiauh/extensions/timelapse/__init__.py
-          sed -i 's|https://github.com/TheSpaghettiDetective/moonraker-obico.git|https://gitee.com/ydd632184193/moonraker-obico.git|g' kiauh/extensions/obico/__init__.py
-          sed -i 's|https://github.com/QuinnDamerell/OctoPrint-OctoEverywhere.git|https://gitee.com/ydd632184193/OctoPrint-OctoEverywhere.git|g' kiauh/extensions/octoeverywhere/__init__.py
-
-          # 4. 配置文件
-          sed -i 's|https://github.com/Klipper3d/klipper|https://gitee.com/ydd632184193/klipper.git|g' default.kiauh.cfg
-          sed -i 's|https://github.com/Arksine/moonraker|https://gitee.com/ydd632184193/moonraker.git|g' default.kiauh.cfg
+          # 使用 find 命令递归查找所有 .py, .cfg, .sh, .txt, .md 文件，进行全局字符串替换
+          # 这样不管官方怎么改文件名，只要字符串还在，就能被替换！
+          
+          find . -type f \( -name "*.py" -o -name "*.cfg" -o -name "*.sh" -o -name "*.txt" -o -name "*.md" \) -exec sed -i \
+            -e 's|https://github.com/Klipper3d/klipper.git|https://gitee.com/ydd632184193/klipper.git|g' \
+            -e 's|https://github.com/Klipper3d/klipper|https://gitee.com/ydd632184193/klipper.git|g' \
+            -e 's|https://github.com/Arksine/moonraker.git|https://gitee.com/ydd632184193/moonraker.git|g' \
+            -e 's|https://github.com/Arksine/moonraker|https://gitee.com/ydd632184193/moonraker.git|g' \
+            -e 's|https://github.com/KlipperScreen/KlipperScreen.git|https://gitee.com/ydd632184193/KlipperScreen.git|g' \
+            -e 's|https://github.com/mainsail-crew/crowsnest.git|https://gitee.com/ydd632184193/crowsnest.git|g' \
+            -e 's|https://github.com/mainsail-crew/mainsail-config.git|https://gitee.com/ydd632184193/mainsail-config.git|g' \
+            -e 's|https://github.com/fluidd-core/fluidd-config.git|https://gitee.com/ydd632184193/fluidd-config.git|g' \
+            -e 's|https://github.com/kyleisah/Klipper-Adaptive-Meshing-Purging|https://gitee.com/ydd632184193/Klipper-Adaptive-Meshing-Purging|g' \
+            -e 's|https://github.com/andrewmcgr/klipper_tmc_autotune|https://gitee.com/ydd632184193/klipper_tmc_autotune|g' \
+            -e 's|https://github.com/Donkie/Spoolman|https://gitee.com/ydd632184193/Spoolman|g' \
+            -e 's|https://github.com/Clon1998/mobileraker_companion.git|https://gitee.com/ydd632184193/mobileraker_companion.git|g' \
+            -e 's|https://github.com/nlef/moonraker-telegram-bot.git|https://gitee.com/ydd632184193/moonraker-telegram-bot.git|g' \
+            -e 's|https://github.com/mainsail-crew/moonraker-timelapse|https://gitee.com/ydd632184193/moonraker-timelapse|g' \
+            -e 's|https://github.com/TheSpaghettiDetective/moonraker-obico.git|https://gitee.com/ydd632184193/moonraker-obico.git|g' \
+            -e 's|https://github.com/QuinnDamerell/OctoPrint-OctoEverywhere.git|https://gitee.com/ydd632184193/OctoPrint-OctoEverywhere.git|g' \
+            -e 's|https://api.github.com/repos/mainsail-crew/mainsail/releases/latest|https://gitee.com/ydd632184193/mainsail_zip/raw/master/mainsail.zip|g' \
+            -e 's|https://github.com/mainsail-crew/mainsail/releases/download/.*/mainsail.zip|https://gitee.com/ydd632184193/mainsail_zip/raw/master/mainsail.zip|g' \
+            {} +
           
       - name: Commit and Push to Gitee
         run: |
           cd kiauh-patched
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
-          # 强制把修改后的代码推送到你 Gitee 的 kiauh 仓库
           git remote set-url origin https://ydd632184193:${{ secrets.GITEE_TOKEN }}@gitee.com/ydd632184193/kiauh.git
           git push -f origin HEAD:master
