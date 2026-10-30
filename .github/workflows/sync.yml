@@ -1,26 +1,15 @@
-name: Sync All Source to Gitee
+name: Sync Klipper Ecosystem
 
 on:
   schedule:
-    - cron: '0 3 * * *' # 每天凌晨 3 点自动跑
-  workflow_dispatch: # 允许手动点击
-
-jobs:
-  sync-klipper:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Sync Klippername: Sync All Klipper Ecosystem to Gitee
-
-on:
-  schedule:
-    - cron: '0 3 * * *' # 每天凌晨 3 点自动跑
-  workflow_dispatch: # 允许手动点击
+    - cron: '0 3 * * *'
+  workflow_dispatch:
 
 jobs:
   sync:
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false # 某个失败不影响其他
+      fail-fast: false
       matrix:
         include:
           - repo: "Klipper3d/klipper.git"
@@ -65,33 +54,8 @@ jobs:
     steps:
       - name: Sync ${{ matrix.repo }} to Gitee
         run: |
-          echo "开始同步 ${{ matrix.repo }} 到 Gitee 的 ${{ matrix.gitee }} ..."
+          echo "Syncing ${{ matrix.repo }} ..."
           git clone --depth 1 https://github.com/${{ matrix.repo }} repo_temp
           cd repo_temp
           git remote set-url origin https://ydd632184193:${{ secrets.GITEE_TOKEN }}@gitee.com/ydd632184193/${{ matrix.gitee }}.git
-          git push -f origin HEAD:master
-        run: |
-          git clone --depth 1 https://github.com/Klipper3d/klipper.git
-          cd klipper
-          git remote set-url origin https://ydd632184193:${{ secrets.GITEE_TOKEN }}@gitee.com/ydd632184193/klipper.git
-          git push -f origin HEAD:master
-
-  sync-moonraker:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Sync Moonraker
-        run: |
-          git clone --depth 1 https://github.com/Arksine/moonraker.git
-          cd moonraker
-          git remote set-url origin https://ydd632184193:${{ secrets.GITEE_TOKEN }}@gitee.com/ydd632184193/moonraker.git
-          git push -f origin HEAD:master
-
-  sync-kiauh:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Sync KIAUH
-        run: |
-          git clone --depth 1 https://github.com/dw-0/kiauh.git
-          cd kiauh
-          git remote set-url origin https://ydd632184193:${{ secrets.GITEE_TOKEN }}@gitee.com/ydd632184193/kiauh.git
           git push -f origin HEAD:master
