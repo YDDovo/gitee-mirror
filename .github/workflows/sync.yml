@@ -1,64 +1,4 @@
-name: Sync Klipper Ecosystem
-
-on:
-  schedule:
-    - cron: '0 3 * * *'
-  workflow_dispatch:
-
-jobs:
-  sync-others:
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - repo: "Klipper3d/klipper.git"
-            gitee: "klipper"
-          - repo: "Arksine/moonraker.git"
-            gitee: "moonraker"
-          - repo: "KlipperScreen/KlipperScreen.git"
-            gitee: "KlipperScreen"
-          - repo: "julianschill/klipper-led_effect.git"
-            gitee: "klipper-led_effect"
-          - repo: "mainsail-crew/moonraker-timelapse.git"
-            gitee: "moonraker-timelapse"
-          - repo: "ArmoredTurtle/AFC-Klipper-Add-On.git"
-            gitee: "AFC-Klipper-Add-On"
-          - repo: "ArmoredTurtle/AFC-Klipper-Screen-Add-On.git"
-            gitee: "AFC-Klipper-Screen-Add-On"
-          - repo: "mainsail-crew/crowsnest.git"
-            gitee: "crowsnest"
-          - repo: "Donkie/Spoolman.git"
-            gitee: "Spoolman"
-          - repo: "fluidd-core/fluidd.git"
-            gitee: "fluidd"
-          - repo: "fluidd-core/fluidd-config.git"
-            gitee: "fluidd-config"
-          - repo: "mainsail-crew/mainsail.git"
-            gitee: "mainsail"
-          - repo: "mainsail-crew/mainsail-config.git"
-            gitee: "mainsail-config"
-          - repo: "Arksine/katapult.git"
-            gitee: "katapult"
-          - repo: "Clon1998/mobileraker_companion.git"
-            gitee: "mobileraker_companion"
-          - repo: "nlef/moonraker-telegram-bot.git"
-            gitee: "moonraker-telegram-bot"
-          - repo: "andrewmcgr/klipper_tmc_autotune.git"
-            gitee: "klipper_tmc_autotune"
-          - repo: "kyleisah/Klipper-Adaptive-Meshing-Purging.git"
-            gitee: "Klipper-Adaptive-Meshing-Purging"
-    steps:
-      - name: Sync ${{ matrix.repo }} to Gitee
-        run: |
-          echo "Syncing ${{ matrix.repo }} ..."
-          git clone https://github.com/${{ matrix.repo }} repo_temp
-          cd repo_temp
-          git remote set-url origin https://ydd632184193:${{ secrets.GITEE_TOKEN }}@gitee.com/ydd632184193/${{ matrix.gitee }}.git
-          git config --global http.version HTTP/1.1
-          for i in 1 2 3; do git push -f origin HEAD:master && break || sleep 5; done
-
-  sync-kiauh-patched:
+sync-kiauh-patched:
     runs-on: ubuntu-latest
     steps:
       - name: Clone Upstream KIAUH
@@ -98,50 +38,45 @@ jobs:
             sed -i 's|/latest/download/|/|g' kiauh/components/webui_client/client_utils.py
           fi
 
-          # 3. 提取出安全的 Python 脚本文件 (绝对不会有缩进错位)
-          cat << 'PYEOF' > patch.py
-          import re
-          file_path = 'kiauh/core/menus/install_menu.py'
-          with open(file_path, 'r', encoding='utf-8') as f:
-              content = f.read()
+          # 3. 执行 Python 脚本注入 9) [Timelapse]
+          python3 - <<'PYEOF'
+import re
+file_path = 'kiauh/core/menus/install_menu.py'
+with open(file_path, 'r', encoding='utf-8') as f:
+    content = f.read()
 
-          if '"9": Option' not in content:
-              content = content.replace('"8": Option(method=self.install_crowsnest),', '"8": Option(method=self.install_crowsnest),\n            "9": Option(method=self.install_timelapse),')
-              content = content.replace('║  3) [Mainsail]            │                           ║', '║  3) [Mainsail]            │  9) [Timelapse]           ║')
+if '"9": Option' not in content:
+    content = content.replace('"8": Option(method=self.install_crowsnest),', '"8": Option(method=self.install_crowsnest),\n            "9": Option(method=self.install_timelapse),')
+    content = content.replace('║  3) [Mainsail]            │                           ║', '║  3) [Mainsail]            │  9) [Timelapse]           ║')
 
-          if 'def install_timelapse' not in content:
-              method = (
-                  '    def install_timelapse(self, **kwargs) -> None:\n'
-                  '        import os\n'
-                  '        print("\\n[INFO] 正在从你的 Gitee 仓库安装 Moonraker-Timelapse...")\n'
-                  '        tl_dir = os.path.expanduser("~/moonraker-timelapse")\n'
-                  '        if not os.path.exists(tl_dir):\n'
-                  '            os.system("git clone https://gitee.com/ydd632184193/moonraker-timelapse.git ~/moonraker-timelapse")\n'
-                  '        print("[INFO] 正在执行官方安装脚本 (make install)...")\n'
-                  '        os.system("cd ~/moonraker-timelapse && make install")\n'
-                  '        print("[INFO] 正在检查依赖和配置文件...")\n'
-                  '        os.system("sudo apt install ffmpeg -y")\n'
-                  '        conf_path = os.path.expanduser("~/printer_data/config/moonraker.conf")\n'
-                  '        with open(conf_path, "r") as f:\n'
-                  '            if "[timelapse]" not in f.read():\n'
-                  '                with open(conf_path, "a") as f_append:\n'
-                  '                    f_append.write("\\n[timelapse]\\n")\n'
-                  '        os.system("sudo systemctl restart moonraker")\n'
-                  '        print("\\n[OK] Timelapse 安装并配置完美成功！按回车返回菜单...")\n'
-                  '        input()\n'
-                  '\n'
-                  '    def install_crowsnest(self, **kwargs) -> None:\n'
-              )
-              content = content.replace('    def install_crowsnest(self, **kwargs) -> None:\n', method)
+if 'def install_timelapse' not in content:
+    method = """    def install_timelapse(self, **kwargs) -> None:
+        import os
+        print("\\n[INFO] 正在从你的 Gitee 仓库安装 Moonraker-Timelapse...")
+        tl_dir = os.path.expanduser("~/moonraker-timelapse")
+        if not os.path.exists(tl_dir):
+            os.system("git clone https://gitee.com/ydd632184193/moonraker-timelapse.git ~/moonraker-timelapse")
+        print("[INFO] 正在执行官方安装脚本 (make install)...")
+        os.system("cd ~/moonraker-timelapse && make install")
+        print("[INFO] 正在检查依赖和配置文件...")
+        os.system("sudo apt install ffmpeg -y")
+        conf_path = os.path.expanduser("~/printer_data/config/moonraker.conf")
+        with open(conf_path, "r") as f:
+            if "[timelapse]" not in f.read():
+                with open(conf_path, "a") as f_append:
+                    f_append.write("\\n[timelapse]\\n")
+        os.system("sudo systemctl restart moonraker")
+        print("\\n[OK] Timelapse 安装并配置完美成功！按回车返回菜单...")
+        input()
 
-          with open(file_path, 'w', encoding='utf-8') as f:
-              f.write(content)
-          print("✅ KIAUH 自动化注入完成！")
-          PYEOF
-          
-          python3 patch.py
-          rm patch.py
-          
+    def install_crowsnest(self, **kwargs) -> None:"""
+    content = content.replace('    def install_crowsnest(self, **kwargs) -> None:', method)
+
+with open(file_path, 'w', encoding='utf-8') as f:
+    f.write(content)
+print("✅ KIAUH 自动化注入完成！")
+PYEOF
+
           # 4. 清理缓存
           find . -type d -name "__pycache__" -exec rm -rf {} + || true
           
